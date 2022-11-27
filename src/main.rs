@@ -1,7 +1,8 @@
+use bevy::prelude::*;
 mod menu;
+mod palette;
 
 use crate::menu::MenuPlugin;
-use bevy::prelude::*;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
