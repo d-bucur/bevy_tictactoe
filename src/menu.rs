@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::AppState;
 use crate::palette;
+use crate::AppState;
 
 pub struct MenuPlugin;
 
@@ -15,7 +15,8 @@ const COLOR_TEXT: Color = palette::SHADE_LIGHT;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(SystemSet::on_enter(AppState::Menu).with_system(spawn_menu))
+        app.add_system_set(SystemSet::on_enter(AppState::Menu).with_system(spawn_menu).label("spawn"))
+            .add_system_set(SystemSet::on_enter(AppState::Menu).with_system(save_scene).after("spawn"))
             .add_system_set(SystemSet::on_update(AppState::Menu).with_system(menu))
             .add_system_set(SystemSet::on_exit(AppState::Menu).with_system(cleanup_menu))
             .insert_resource(ClearColor(COLOR_BG));
@@ -51,11 +52,17 @@ fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(MenuItem);
 }
 
-fn menu(mut interaction_query: Query<(&Interaction, &mut BackgroundColor), (Changed<Interaction>, With<Button>)>) {
+fn menu(
+    mut state: ResMut<State<AppState>>,
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => {
-                println!("Button clicked");
+                state.set(AppState::Game).unwrap();
             }
             Interaction::Hovered => {
                 *color = COLOR_HOVER.into();
@@ -67,4 +74,12 @@ fn menu(mut interaction_query: Query<(&Interaction, &mut BackgroundColor), (Chan
     }
 }
 
-fn cleanup_menu(mut commands: Commands) {}
+fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MenuItem>>) {
+    for item in &query {
+        commands.entity(item).despawn_recursive();
+    }
+}
+
+fn save_scene(world: &World) {
+    crate::utils::save_to_scene(world);
+}

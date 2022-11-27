@@ -1,7 +1,11 @@
-use bevy::prelude::*;
 mod menu;
+mod game;
 mod palette;
+mod utils;
 
+use bevy::prelude::*;
+use bevy_editor_pls::EditorPlugin;
+use game::GamePlugin;
 use crate::menu::MenuPlugin;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -23,6 +27,8 @@ fn main() {
             ..default()
         }))
         .add_plugin(MenuPlugin)
+        .add_plugin(GamePlugin)
+        .add_plugin(EditorPlugin)
         .add_state(AppState::Menu)
         .add_startup_system(setup)
         .run();

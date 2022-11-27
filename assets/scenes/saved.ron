@@ -1,0 +1,272 @@
+(
+  entities: {
+    0: (
+      components: {
+        "bevy_transform::components::global_transform::GlobalTransform": ((
+          matrix3: (
+            x_axis: (
+              x: 1.0,
+              y: 0.0,
+              z: 0.0,
+            ),
+            y_axis: (
+              x: 0.0,
+              y: 1.0,
+              z: 0.0,
+            ),
+            z_axis: (
+              x: 0.0,
+              y: 0.0,
+              z: 1.0,
+            ),
+          ),
+          translation: (
+            x: 0.0,
+            y: 2.0,
+            z: 5.0,
+          ),
+        )),
+        "bevy_render::camera::camera::Camera": (
+          viewport: None,
+          priority: 100,
+          is_active: false,
+          hdr: false,
+        ),
+        "bevy_transform::components::transform::Transform": (
+          translation: (
+            x: 0.0,
+            y: 2.0,
+            z: 5.0,
+          ),
+          rotation: (0.0, 0.0, 0.0, 1.0),
+          scale: (
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+          ),
+        ),
+        "bevy_render::camera::camera::CameraRenderGraph": ("core_3d"),
+        "bevy_render::camera::projection::Projection": Perspective((
+          fov: 0.7853982,
+          aspect_ratio: 1.7066667,
+          near: 0.1,
+          far: 1000.0,
+        )),
+        "bevy_render::view::visibility::VisibleEntities": (),
+        "bevy_render::primitives::Frustum": (),
+        "bevy_core_pipeline::core_3d::camera_3d::Camera3d": (
+          clear_color: Default,
+          depth_load_op: Clear(0.0),
+        ),
+        "bevy_core_pipeline::tonemapping::Tonemapping": Enabled(
+          deband_dither: true,
+        ),
+        "bevy_core::name::Name": (
+          hash: 6683206324070912393,
+          name: "Editor Camera 3D Free",
+        ),
+      },
+    ),
+    1: (
+      components: {
+        "bevy_transform::components::global_transform::GlobalTransform": ((
+          matrix3: (
+            x_axis: (
+              x: 1.0,
+              y: 0.0,
+              z: 0.0,
+            ),
+            y_axis: (
+              x: 0.0,
+              y: 1.0,
+              z: 0.0,
+            ),
+            z_axis: (
+              x: 0.0,
+              y: 0.0,
+              z: 1.0,
+            ),
+          ),
+          translation: (
+            x: 0.0,
+            y: 2.0,
+            z: 5.0,
+          ),
+        )),
+        "bevy_render::camera::camera::Camera": (
+          viewport: None,
+          priority: 100,
+          is_active: false,
+          hdr: false,
+        ),
+        "bevy_transform::components::transform::Transform": (
+          translation: (
+            x: 0.0,
+            y: 2.0,
+            z: 5.0,
+          ),
+          rotation: (0.0, 0.0, 0.0, 1.0),
+          scale: (
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+          ),
+        ),
+        "bevy_render::camera::camera::CameraRenderGraph": ("core_3d"),
+        "bevy_render::camera::projection::Projection": Perspective((
+          fov: 0.7853982,
+          aspect_ratio: 1.7066667,
+          near: 0.1,
+          far: 1000.0,
+        )),
+        "bevy_render::view::visibility::VisibleEntities": (),
+        "bevy_render::primitives::Frustum": (),
+        "bevy_core_pipeline::core_3d::camera_3d::Camera3d": (
+          clear_color: Default,
+          depth_load_op: Clear(0.0),
+        ),
+        "bevy_core_pipeline::tonemapping::Tonemapping": Enabled(
+          deband_dither: true,
+        ),
+        "bevy_core::name::Name": (
+          hash: 14157296703666702242,
+          name: "Editor Camera 3D Pan/Orbit",
+        ),
+      },
+    ),
+    2: (
+      components: {
+        "bevy_transform::components::global_transform::GlobalTransform": ((
+          matrix3: (
+            x_axis: (
+              x: 1.0,
+              y: 0.0,
+              z: 0.0,
+            ),
+            y_axis: (
+              x: 0.0,
+              y: 1.0,
+              z: 0.0,
+            ),
+            z_axis: (
+              x: 0.0,
+              y: 0.0,
+              z: 1.0,
+            ),
+          ),
+          translation: (
+            x: 0.0,
+            y: 0.0,
+            z: 999.9,
+          ),
+        )),
+        "bevy_render::camera::camera::Camera": (
+          viewport: None,
+          priority: 100,
+          is_active: false,
+          hdr: false,
+        ),
+        "bevy_transform::components::transform::Transform": (
+          translation: (
+            x: 0.0,
+            y: 0.0,
+            z: 999.9,
+          ),
+          rotation: (0.0, 0.0, 0.0, 1.0),
+          scale: (
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+          ),
+        ),
+        "bevy_render::camera::camera::CameraRenderGraph": ("core_2d"),
+        "bevy_render::view::visibility::VisibleEntities": (),
+        "bevy_render::primitives::Frustum": (),
+        "bevy_core_pipeline::tonemapping::Tonemapping": Disabled,
+        "bevy_core::name::Name": (
+          hash: 13940691057439735126,
+          name: "Editor Camera 2D Pan/Zoom",
+        ),
+        "bevy_render::camera::projection::OrthographicProjection": (
+          left: -512.0,
+          right: 512.0,
+          bottom: -300.0,
+          top: 300.0,
+          near: 0.0,
+          far: 1000.0,
+          window_origin: Center,
+          scaling_mode: WindowSize,
+          scale: 1.0,
+        ),
+        "bevy_core_pipeline::core_2d::camera_2d::Camera2d": (
+          clear_color: Default,
+        ),
+      },
+    ),
+    3: (
+      components: {
+        "bevy_transform::components::global_transform::GlobalTransform": ((
+          matrix3: (
+            x_axis: (
+              x: 1.0,
+              y: 0.0,
+              z: 0.0,
+            ),
+            y_axis: (
+              x: 0.0,
+              y: 1.0,
+              z: 0.0,
+            ),
+            z_axis: (
+              x: 0.0,
+              y: 0.0,
+              z: 1.0,
+            ),
+          ),
+          translation: (
+            x: 0.0,
+            y: 0.0,
+            z: 999.9,
+          ),
+        )),
+        "bevy_render::camera::camera::Camera": (
+          viewport: None,
+          priority: 0,
+          is_active: true,
+          hdr: false,
+        ),
+        "bevy_transform::components::transform::Transform": (
+          translation: (
+            x: 0.0,
+            y: 0.0,
+            z: 999.9,
+          ),
+          rotation: (0.0, 0.0, 0.0, 1.0),
+          scale: (
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+          ),
+        ),
+        "bevy_render::camera::camera::CameraRenderGraph": ("core_2d"),
+        "bevy_render::view::visibility::VisibleEntities": (),
+        "bevy_render::primitives::Frustum": (),
+        "bevy_core_pipeline::tonemapping::Tonemapping": Disabled,
+        "bevy_render::camera::projection::OrthographicProjection": (
+          left: -512.0,
+          right: 512.0,
+          bottom: -300.0,
+          top: 300.0,
+          near: 0.0,
+          far: 1000.0,
+          window_origin: Center,
+          scaling_mode: WindowSize,
+          scale: 1.0,
+        ),
+        "bevy_core_pipeline::core_2d::camera_2d::Camera2d": (
+          clear_color: Default,
+        ),
+      },
+    ),
+  },
+)
