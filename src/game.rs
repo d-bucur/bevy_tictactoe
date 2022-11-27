@@ -11,6 +11,6 @@ impl Plugin for GamePlugin {
     }
 }
 
-fn game_enter_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn game_enter_system(commands: Commands, asset_server: Res<AssetServer>) {
     crate::utils::load_scene(commands, asset_server)
 }
