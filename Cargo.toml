@@ -11,6 +11,7 @@ readme = "README.md"
 bevy = "0.9.0"
 bevy-inspector-egui = { version = "0.14" }
 bevy_editor_pls = "0.2"
+rand = "0.8.0"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

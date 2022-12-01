@@ -15,16 +15,27 @@ const COLOR_TEXT: Color = palette::SHADE_LIGHT;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(SystemSet::on_enter(AppState::Menu).with_system(spawn_menu).label("spawn"))
+        app.add_system_set(
+            SystemSet::on_enter(AppState::Menu)
+                .with_system(spawn_menu)
+                .label("spawn"),
+        )
         .add_system_set(SystemSet::on_update(AppState::Menu).with_system(menu))
-        .add_system_set(SystemSet::on_exit(AppState::Menu).with_system(save_scene).before("clean"))
-        .add_system_set(SystemSet::on_exit(AppState::Menu).with_system(cleanup_menu).label("clean"))
+        .add_system_set(
+            SystemSet::on_exit(AppState::Menu)
+                .with_system(save_scene)
+                .before("clean"),
+        )
+        .add_system_set(
+            SystemSet::on_exit(AppState::Menu)
+                .with_system(cleanup_menu)
+                .label("clean"),
+        )
         .insert_resource(ClearColor(COLOR_BG));
     }
 }
 
 fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
-    println!("spawning menu");
     commands
         .spawn(ButtonBundle {
             style: Style {
@@ -41,14 +52,16 @@ fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         })
         .with_children(|parent| {
-            parent.spawn(TextBundle::from_section(
-                "Start",
-                TextStyle {
-                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                    font_size: 40.0,
-                    color: COLOR_TEXT,
-                },
-            )).insert(Name::new("ButtonText"));
+            parent
+                .spawn(TextBundle::from_section(
+                    "Start",
+                    TextStyle {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font_size: 40.0,
+                        color: COLOR_TEXT,
+                    },
+                ))
+                .insert(Name::new("ButtonText"));
         })
         .insert(Name::new("Button"))
         .insert(MenuItem);
@@ -77,13 +90,11 @@ fn menu(
 }
 
 fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MenuItem>>) {
-    println!("cleanup scene");
     for item in &query {
         commands.entity(item).despawn_recursive();
     }
 }
 
 fn save_scene(world: &World) {
-    println!("saving scene");
     crate::utils::save_to_scene(world);
 }

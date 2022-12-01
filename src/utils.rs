@@ -10,7 +10,6 @@ pub fn save_to_scene(world: &World) {
     let type_registry = world.resource::<AppTypeRegistry>();
     let scene = DynamicScene::from_world(&world, type_registry);
     let serialized_scene = scene.serialize_ron(type_registry).unwrap();
-    // info!("{}", serialized_scene);
 
     #[cfg(not(target_arch = "wasm32"))]
     IoTaskPool::get()

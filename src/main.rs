@@ -1,12 +1,12 @@
-mod menu;
 mod game;
+mod menu;
 mod palette;
 mod utils;
 
+use crate::menu::MenuPlugin;
 use bevy::prelude::*;
 use bevy_editor_pls::EditorPlugin;
-use game::GamePlugin;
-use crate::menu::MenuPlugin;
+use game::TicTacToeGamePlugin;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -27,7 +27,7 @@ fn main() {
             ..default()
         }))
         .add_plugin(MenuPlugin)
-        .add_plugin(GamePlugin)
+        .add_plugin(TicTacToeGamePlugin)
         .add_plugin(EditorPlugin)
         .add_state(AppState::Menu)
         .add_startup_system(setup)
