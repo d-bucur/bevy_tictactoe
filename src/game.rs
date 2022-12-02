@@ -14,21 +14,35 @@ struct PlacementButton;
 
 #[derive(Component)]
 struct GridPosition {
-    x: u8,
-    y: u8,
+    x: usize,
+    y: usize,
 }
 
-#[derive(Resource, Default)]
-struct GameResources {
-    text_style: TextStyle,
-    button: ButtonBundle,
+#[derive(Clone, Copy)]
+enum GridValue {
+    X,
+    O,
+    Empty,
+}
+
+#[derive(Resource)]
+struct Grid {
+    vals: [[GridValue; 3]; 3],
+}
+
+impl Grid {
+    fn new() -> Self {
+        Grid {
+            vals: [[GridValue::Empty; 3]; 3],
+        }
+    }
 }
 
 pub struct TicTacToeGamePlugin;
 
 impl Plugin for TicTacToeGamePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(GameResources::default())
+        app.insert_resource(Grid::new())
             .add_system_set(SystemSet::on_enter(AppState::Game).with_system(setup))
             .add_system_set(SystemSet::on_update(AppState::Game).with_system(player_input));
     }
@@ -36,14 +50,21 @@ impl Plugin for TicTacToeGamePlugin {
 
 fn player_input(
     mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
+        (&Interaction, &mut BackgroundColor, &GridPosition, &Children),
         (Changed<Interaction>, With<Button>),
     >,
+    mut children_query: Query<&mut Text>,
+    mut grid: ResMut<Grid>,
 ) {
-    for (interaction, mut color) in &mut interaction_query {
+    for (interaction, mut color, grid_position, children) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => {
-                println!("Clicked")
+                for child in children {
+                    for mut text in children_query.get_mut(*child) {
+                        text.sections[0].value = "T".into();
+                    }
+                }
+                try_place_value(&mut grid, grid_position);
             }
             Interaction::Hovered => {
                 *color = palette::SHADE_MED_LIGHT.into();
@@ -56,18 +77,17 @@ fn player_input(
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    mut resources: ResMut<GameResources>,
-    asset_server: Res<AssetServer>,
-) {
-    // TODO no need for resources. remove
-    resources.text_style = TextStyle {
+fn try_place_value(grid: &mut ResMut<Grid>, grid_position: &GridPosition) {
+    println!("Clicked {}, {}", grid_position.x, grid_position.y);
+    grid.vals[grid_position.x][grid_position.y] = GridValue::O;
+}
+
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let text_style = TextStyle {
         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
         font_size: 40.0,
         color: palette::SHADE_LIGHT,
     };
-    resources.button = make_grid_button();
     let button_container = commands.spawn(make_button_container()).id();
 
     for i in 0..3 {
@@ -77,23 +97,27 @@ fn setup(
             .id();
         for j in 0..3 {
             let button = commands
-                .spawn(resources.button.clone())
+                .spawn(make_grid_button())
                 .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section("", resources.text_style.clone()));
+                    parent.spawn(TextBundle::from_section("", text_style.clone()));
                 })
-                .insert(Name::new("Button"))
+                .insert(Name::new(format!("GridButton{}-{}", i, j)))
                 .insert(GridPosition { x: i, y: j })
                 .id();
-            let separator_vertical = commands.spawn(make_separator_vertical()).id();
             commands.entity(row_container).add_child(button);
-            commands.entity(row_container).add_child(separator_vertical);
+            if j < 2 {
+                let separator_vertical = commands.spawn(make_separator_vertical()).id();
+                commands.entity(row_container).add_child(separator_vertical);
+            }
         }
 
-        let separator_horizontal = commands.spawn(make_separator_horizontal()).id();
         commands.entity(button_container).add_child(row_container);
-        commands
-            .entity(button_container)
-            .add_child(separator_horizontal);
+        if i < 2 {
+            let separator_horizontal = commands.spawn(make_separator_horizontal()).id();
+            commands
+                .entity(button_container)
+                .add_child(separator_horizontal);
+        }
     }
 }
 
