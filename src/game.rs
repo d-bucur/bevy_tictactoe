@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{
-    palette::{self, SHADE_DARK},
-    AppState,
-};
+use crate::{palette, AppState};
 
 #[derive(Component)]
 struct PlacementButton;
@@ -14,30 +11,26 @@ struct GridPosition {
     y: usize,
 }
 
+#[derive(Clone, Copy)]
 enum PlayerTurn {
     X,
     O,
 }
 
 impl PlayerTurn {
-    fn to_string(&self) -> &str {
-        match *self {
-            PlayerTurn::X => "X",
-            PlayerTurn::O => "O",
-        }
-    }
-
-    fn to_grid_value(&self) -> GridValue {
-        match *self {
-            PlayerTurn::O => GridValue::O,
-            PlayerTurn::X => GridValue::X,
-        }
-    }
-
     fn next(&self) -> PlayerTurn {
         match *self {
             PlayerTurn::O => PlayerTurn::X,
             PlayerTurn::X => PlayerTurn::O,
+        }
+    }
+}
+
+impl From<PlayerTurn> for String {
+    fn from(val: PlayerTurn) -> Self {
+        match val {
+            PlayerTurn::X => "X".into(),
+            PlayerTurn::O => "O".into(),
         }
     }
 }
@@ -47,6 +40,15 @@ enum GridValue {
     X,
     O,
     Empty,
+}
+
+impl From<PlayerTurn> for GridValue {
+    fn from(val: PlayerTurn) -> Self {
+        match val {
+            PlayerTurn::O => GridValue::O,
+            PlayerTurn::X => GridValue::X,
+        }
+    }
 }
 
 #[derive(Resource)]
@@ -75,14 +77,28 @@ impl Grid {
     }
 }
 
+#[derive(Component)]
+struct StatusText;
+
+struct StatusTextUpdate {
+    text: String,
+}
+
 pub struct TicTacToeGamePlugin;
 
 impl Plugin for TicTacToeGamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Grid::new())
-            .insert_resource(GameState { player_turn: PlayerTurn::X })
+            .insert_resource(GameState {
+                player_turn: PlayerTurn::X,
+            })
             .add_system_set(SystemSet::on_enter(AppState::Game).with_system(setup))
-            .add_system_set(SystemSet::on_update(AppState::Game).with_system(player_input));
+            .add_system_set(
+                SystemSet::on_update(AppState::Game)
+                    .with_system(player_input)
+                    .with_system(update_status),
+            )
+            .add_event::<StatusTextUpdate>();
     }
 }
 
@@ -94,19 +110,28 @@ fn player_input(
     mut children_query: Query<&mut Text>,
     mut grid: ResMut<Grid>,
     mut game_state: ResMut<GameState>,
+    mut status_writer: EventWriter<StatusTextUpdate>,
 ) {
     for (interaction, mut color, grid_position, children) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => {
+                // TODO only check input and buttons in this system, set variable and do gameplay logic in another system
                 if grid.get(grid_position) == GridValue::Empty {
                     // TODO write helper function to get component from children
                     for child in children {
                         for mut text in children_query.get_mut(*child) {
-                            text.sections[0].value = game_state.player_turn.to_string().into()
+                            text.sections[0].value = game_state.player_turn.into()
                         }
                     }
-                    grid.set(grid_position, game_state.player_turn.to_grid_value());
+                    grid.set(grid_position, game_state.player_turn.into());
                     game_state.player_turn = game_state.player_turn.next();
+                    status_writer.send(StatusTextUpdate {
+                        text: format!("{} to move", String::from(game_state.player_turn)),
+                    })
+                } else {
+                    status_writer.send(StatusTextUpdate {
+                        text: "Invalid move".into(),
+                    })
                 }
             }
             Interaction::Hovered => {
@@ -119,6 +144,16 @@ fn player_input(
     }
 }
 
+fn update_status(
+    mut status_events: EventReader<StatusTextUpdate>,
+    mut query: Query<&mut Text, With<StatusText>>,
+) {
+    for event in status_events.iter() {
+        let mut res = query.get_single_mut().unwrap();
+        res.sections[0].value = event.text.clone();
+    }
+}
+
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let text_style = TextStyle {
         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
@@ -127,6 +162,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     };
     let button_container = commands.spawn(make_button_container()).id();
 
+    // create rows for buttons
     for i in 0..3 {
         let row_container = commands
             .spawn(make_row_container())
@@ -148,6 +184,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             }
         }
 
+        // create cells in rows
         commands.entity(button_container).add_child(row_container);
         if i < 2 {
             let separator_horizontal = commands.spawn(make_separator_horizontal()).id();
@@ -155,6 +192,29 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 .entity(button_container)
                 .add_child(separator_horizontal);
         }
+    }
+
+    // place buttons and helper text
+    let canvas = commands.spawn(make_canvas_node()).id();
+    let helper_text = commands
+        .spawn(TextBundle::from_section("", text_style.clone()))
+        .insert(StatusText)
+        .id();
+    commands.entity(canvas).add_child(button_container);
+    commands.entity(canvas).add_child(helper_text);
+}
+
+fn make_canvas_node() -> NodeBundle {
+    NodeBundle {
+        style: Style {
+            margin: UiRect::all(Val::Auto),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            size: Size::new(Val::Px(200.0), Val::Percent(100.0)),
+            ..default()
+        },
+        ..default()
     }
 }
 
