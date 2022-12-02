@@ -2,15 +2,20 @@ use bevy::prelude::*;
 
 use crate::{palette, AppState};
 
+// Components
 #[derive(Component)]
 struct PlacementButton;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct GridPosition {
     x: usize,
     y: usize,
 }
 
+#[derive(Component)]
+struct StatusText;
+
+// Game structures
 #[derive(Clone, Copy)]
 enum PlayerTurn {
     X,
@@ -51,6 +56,7 @@ impl From<PlayerTurn> for GridValue {
     }
 }
 
+// Resources
 #[derive(Resource)]
 struct GameState {
     player_turn: PlayerTurn,
@@ -68,21 +74,26 @@ impl Grid {
         }
     }
 
-    fn get(&self, pos: &GridPosition) -> GridValue {
+    fn get(&self, pos: GridPosition) -> GridValue {
         return self.vals[pos.x][pos.y];
     }
 
-    fn set(&mut self, pos: &GridPosition, val: GridValue) {
+    fn set(&mut self, pos: GridPosition, val: GridValue) {
         self.vals[pos.x][pos.y] = val
     }
 }
 
-#[derive(Component)]
-struct StatusText;
-
-struct StatusTextUpdate {
+// Events
+struct StatusTextUpdateEvent {
     text: String,
 }
+
+struct TryPlaceEvent {
+    pos: GridPosition,
+    text_entity: Entity,
+}
+
+// Plugin
 
 pub struct TicTacToeGamePlugin;
 
@@ -95,44 +106,30 @@ impl Plugin for TicTacToeGamePlugin {
             .add_system_set(SystemSet::on_enter(AppState::Game).with_system(setup))
             .add_system_set(
                 SystemSet::on_update(AppState::Game)
-                    .with_system(player_input)
-                    .with_system(update_status),
+                    .with_system(handle_player_input)
+                    .with_system(update_status_text)
+                    .with_system(place_grid_piece),
             )
-            .add_event::<StatusTextUpdate>();
+            .add_event::<StatusTextUpdateEvent>()
+            .add_event::<TryPlaceEvent>();
     }
 }
 
-fn player_input(
+// Systems
+fn handle_player_input(
     mut interaction_query: Query<
         (&Interaction, &mut BackgroundColor, &GridPosition, &Children),
         (Changed<Interaction>, With<Button>),
     >,
-    mut children_query: Query<&mut Text>,
-    mut grid: ResMut<Grid>,
-    mut game_state: ResMut<GameState>,
-    mut status_writer: EventWriter<StatusTextUpdate>,
+    mut place_writer: EventWriter<TryPlaceEvent>,
 ) {
-    for (interaction, mut color, grid_position, children) in &mut interaction_query {
+    for (interaction, mut color, &grid_position, children) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => {
-                // TODO only check input and buttons in this system, set variable and do gameplay logic in another system
-                if grid.get(grid_position) == GridValue::Empty {
-                    // TODO write helper function to get component from children
-                    for child in children {
-                        for mut text in children_query.get_mut(*child) {
-                            text.sections[0].value = game_state.player_turn.into()
-                        }
-                    }
-                    grid.set(grid_position, game_state.player_turn.into());
-                    game_state.player_turn = game_state.player_turn.next();
-                    status_writer.send(StatusTextUpdate {
-                        text: format!("{} to move", String::from(game_state.player_turn)),
-                    })
-                } else {
-                    status_writer.send(StatusTextUpdate {
-                        text: "Invalid move".into(),
-                    })
-                }
+                place_writer.send(TryPlaceEvent {
+                    pos: grid_position,
+                    text_entity: *children.iter().next().unwrap(),
+                });
             }
             Interaction::Hovered => {
                 *color = palette::SHADE_MED_LIGHT.into();
@@ -144,13 +141,37 @@ fn player_input(
     }
 }
 
-fn update_status(
-    mut status_events: EventReader<StatusTextUpdate>,
+fn update_status_text(
+    mut status_events: EventReader<StatusTextUpdateEvent>,
     mut query: Query<&mut Text, With<StatusText>>,
 ) {
     for event in status_events.iter() {
         let mut res = query.get_single_mut().unwrap();
         res.sections[0].value = event.text.clone();
+    }
+}
+
+fn place_grid_piece(
+    mut try_place_events: EventReader<TryPlaceEvent>,
+    mut grid: ResMut<Grid>,
+    mut game_state: ResMut<GameState>,
+    mut status_writer: EventWriter<StatusTextUpdateEvent>,
+    mut query: Query<&mut Text>,
+) {
+    for event in try_place_events.iter() {
+        if grid.get(event.pos) == GridValue::Empty {
+            let mut text = query.get_component_mut::<Text>(event.text_entity).unwrap();
+            text.sections[0].value = game_state.player_turn.into();
+            grid.set(event.pos, game_state.player_turn.into());
+            game_state.player_turn = game_state.player_turn.next();
+            status_writer.send(StatusTextUpdateEvent {
+                text: format!("{} to move", String::from(game_state.player_turn)),
+            })
+        } else {
+            status_writer.send(StatusTextUpdateEvent {
+                text: "Invalid move".into(),
+            })
+        }
     }
 }
 
@@ -204,6 +225,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.entity(canvas).add_child(helper_text);
 }
 
+// Helpers for bundles
 fn make_canvas_node() -> NodeBundle {
     NodeBundle {
         style: Style {
