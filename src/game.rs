@@ -1,13 +1,9 @@
-use bevy::{
-    prelude::*,
-    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
-};
+use bevy::prelude::*;
 
 use crate::{
     palette::{self, SHADE_DARK},
     AppState,
 };
-use rand::Rng;
 
 #[derive(Component)]
 struct PlacementButton;
@@ -18,11 +14,44 @@ struct GridPosition {
     y: usize,
 }
 
-#[derive(Clone, Copy)]
+enum PlayerTurn {
+    X,
+    O,
+}
+
+impl PlayerTurn {
+    fn to_string(&self) -> &str {
+        match *self {
+            PlayerTurn::X => "X",
+            PlayerTurn::O => "O",
+        }
+    }
+
+    fn to_grid_value(&self) -> GridValue {
+        match *self {
+            PlayerTurn::O => GridValue::O,
+            PlayerTurn::X => GridValue::X,
+        }
+    }
+
+    fn next(&self) -> PlayerTurn {
+        match *self {
+            PlayerTurn::O => PlayerTurn::X,
+            PlayerTurn::X => PlayerTurn::O,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
 enum GridValue {
     X,
     O,
     Empty,
+}
+
+#[derive(Resource)]
+struct GameState {
+    player_turn: PlayerTurn,
 }
 
 #[derive(Resource)]
@@ -36,6 +65,14 @@ impl Grid {
             vals: [[GridValue::Empty; 3]; 3],
         }
     }
+
+    fn get(&self, pos: &GridPosition) -> GridValue {
+        return self.vals[pos.x][pos.y];
+    }
+
+    fn set(&mut self, pos: &GridPosition, val: GridValue) {
+        self.vals[pos.x][pos.y] = val
+    }
 }
 
 pub struct TicTacToeGamePlugin;
@@ -43,6 +80,7 @@ pub struct TicTacToeGamePlugin;
 impl Plugin for TicTacToeGamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Grid::new())
+            .insert_resource(GameState { player_turn: PlayerTurn::X })
             .add_system_set(SystemSet::on_enter(AppState::Game).with_system(setup))
             .add_system_set(SystemSet::on_update(AppState::Game).with_system(player_input));
     }
@@ -55,16 +93,21 @@ fn player_input(
     >,
     mut children_query: Query<&mut Text>,
     mut grid: ResMut<Grid>,
+    mut game_state: ResMut<GameState>,
 ) {
     for (interaction, mut color, grid_position, children) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => {
-                for child in children {
-                    for mut text in children_query.get_mut(*child) {
-                        text.sections[0].value = "T".into();
+                if grid.get(grid_position) == GridValue::Empty {
+                    // TODO write helper function to get component from children
+                    for child in children {
+                        for mut text in children_query.get_mut(*child) {
+                            text.sections[0].value = game_state.player_turn.to_string().into()
+                        }
                     }
+                    grid.set(grid_position, game_state.player_turn.to_grid_value());
+                    game_state.player_turn = game_state.player_turn.next();
                 }
-                try_place_value(&mut grid, grid_position);
             }
             Interaction::Hovered => {
                 *color = palette::SHADE_MED_LIGHT.into();
@@ -72,14 +115,8 @@ fn player_input(
             Interaction::None => {
                 *color = palette::SHADE_MED_DARK.into();
             }
-            _ => (),
         }
     }
-}
-
-fn try_place_value(grid: &mut ResMut<Grid>, grid_position: &GridPosition) {
-    println!("Clicked {}, {}", grid_position.x, grid_position.y);
-    grid.vals[grid_position.x][grid_position.y] = GridValue::O;
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {

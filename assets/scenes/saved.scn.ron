@@ -62,7 +62,7 @@
           deband_dither: true,
         ),
         "bevy_core::name::Name": (
-          hash: 2569773717878059454,
+          hash: 13606317158347290513,
           name: "Editor Camera 3D Free",
         ),
         "bevy_pbr::light::ClusterConfig": FixedZ(
@@ -138,7 +138,7 @@
           deband_dither: true,
         ),
         "bevy_core::name::Name": (
-          hash: 5761885703546741179,
+          hash: 8366838533735029633,
           name: "Editor Camera 3D Pan/Orbit",
         ),
         "bevy_pbr::light::ClusterConfig": FixedZ(
@@ -202,7 +202,7 @@
         "bevy_render::primitives::Frustum": (),
         "bevy_core_pipeline::tonemapping::Tonemapping": Disabled,
         "bevy_core::name::Name": (
-          hash: 4638011295211357454,
+          hash: 499778456471705158,
           name: "Editor Camera 2D Pan/Zoom",
         ),
         "bevy_render::camera::projection::OrthographicProjection": (
@@ -351,7 +351,7 @@
           ),
         ),
         "bevy_core::name::Name": (
-          hash: 11078892012862243057,
+          hash: 7338655120140496984,
           name: "Button",
         ),
         "bevy_hierarchy::components::children::Children": ([
@@ -479,7 +479,7 @@
           ),
         ),
         "bevy_core::name::Name": (
-          hash: 11517343805345904093,
+          hash: 7242121879118342406,
           name: "ButtonText",
         ),
         "bevy_hierarchy::components::parent::Parent": ((
@@ -493,6 +493,29 @@
           ),
         ),
         "bevy_ui::focus::FocusPolicy": Pass,
+        "bevy_text::text::Text": (
+          sections: [
+            (
+              value: "Start",
+              style: (
+                font: (
+                  id: AssetPathId(((313531792669166586), (6298619649789039366))),
+                ),
+                font_size: 40.0,
+                color: Rgba(
+                  red: 0.9372549,
+                  green: 0.9764706,
+                  blue: 0.8392157,
+                  alpha: 1.0,
+                ),
+              ),
+            ),
+          ],
+          alignment: (
+            vertical: Top,
+            horizontal: Left,
+          ),
+        ),
         "bevy_ui::ui_node::Style": (
           display: Flex,
           position_type: Relative,
@@ -544,29 +567,6 @@
           ),
           aspect_ratio: None,
           overflow: Visible,
-        ),
-        "bevy_text::text::Text": (
-          sections: [
-            (
-              value: "Start",
-              style: (
-                font: (
-                  id: AssetPathId(((313531792669166586), (6298619649789039366))),
-                ),
-                font_size: 40.0,
-                color: Rgba(
-                  red: 0.9372549,
-                  green: 0.9764706,
-                  blue: 0.8392157,
-                  alpha: 1.0,
-                ),
-              ),
-            ),
-          ],
-          alignment: (
-            vertical: Top,
-            horizontal: Left,
-          ),
         ),
         "bevy_ui::ui_node::CalculatedSize": (
           size: (
