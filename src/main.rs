@@ -1,17 +1,20 @@
 mod game;
 mod menu;
 mod palette;
+mod testmode;
 mod utils;
 
 use crate::menu::MenuPlugin;
 use bevy::prelude::*;
 use bevy_editor_pls::EditorPlugin;
 use game::TicTacToeGamePlugin;
+use testmode::TestModePlugin;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
     Menu,
     Game,
+    Test,
 }
 
 fn main() {
@@ -28,6 +31,7 @@ fn main() {
         }))
         .add_plugin(MenuPlugin)
         .add_plugin(TicTacToeGamePlugin)
+        .add_plugin(TestModePlugin)
         .add_plugin(EditorPlugin)
         .add_state(AppState::Menu)
         .add_startup_system(setup)
