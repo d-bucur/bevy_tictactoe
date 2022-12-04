@@ -217,8 +217,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     // place buttons and helper text
     let canvas = commands.spawn(make_canvas_node()).id();
+    let mut helper_text_bundle = TextBundle::from_section("", text_style.clone());
+    helper_text_bundle.style.size = Size::new(Val::Auto, Val::Px(50.));
     let helper_text = commands
-        .spawn(TextBundle::from_section("", text_style.clone()))
+        .spawn(helper_text_bundle)
         .insert(StatusText)
         .id();
     commands.entity(canvas).add_child(button_container);
@@ -274,8 +276,8 @@ fn make_row_container() -> NodeBundle {
     NodeBundle {
         style: Style {
             flex_direction: FlexDirection::Row,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
+            // justify_content: JustifyContent::Center,
+            // align_items: AlignItems::Center,
             size: Size::new(Val::Px(200.0), Val::Px(200.0)),
             ..default()
         },
