@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
 use crate::{palette, AppState};
@@ -114,9 +116,14 @@ struct PiecePlacedEvent {
     pos: GridPosition,
 }
 
+struct WinState {
+    player: PlayerTurn,
+    victory_cells: HashSet<(usize, usize)>,
+}
+
 enum GameEndedEvent {
     Draw, // TODO detect draw
-    Win(PlayerTurn),
+    Win(WinState),
 }
 
 // Plugin
@@ -217,19 +224,35 @@ fn check_win_condition(
     mut game_ended_writer: EventWriter<GameEndedEvent>,
 ) {
     for event in placed_piece_reader.iter() {
-        let horizontal = (0..3)
-            .map(|x| grid.vals[x][event.pos.y].score())
-            .sum::<i32>();
-        let vertical = (0..3)
-            .map(|y| grid.vals[event.pos.x][y].score())
-            .sum::<i32>();
+        let mut winning_pos: HashSet<(usize, usize)> = HashSet::new();
+        let horizontal: i32 = (0..3).map(|x| grid.vals[x][event.pos.y].score()).sum();
+        let vertical: i32 = (0..3).map(|y| grid.vals[event.pos.x][y].score()).sum();
         let diagonal_one: i32 = (0..3).map(|i| grid.vals[i][i].score()).sum();
         let diagonal_two: i32 = (0..3).map(|i| grid.vals[2 - i][i].score()).sum();
-        if horizontal == 3 || vertical == 3 || diagonal_one == 3 || diagonal_two == 3 {
-            game_ended_writer.send(GameEndedEvent::Win(PlayerTurn::X))
+
+        if horizontal.abs() == 3 {
+            winning_pos.extend((0..3).zip(std::iter::repeat(event.pos.y)))
         }
-        if horizontal == -3 || vertical == -3 || diagonal_one == -3 || diagonal_two == -3 {
-            game_ended_writer.send(GameEndedEvent::Win(PlayerTurn::O))
+        if vertical.abs() == 3 {
+            winning_pos.extend(std::iter::repeat(event.pos.x).zip(0..3))
+        }
+        if diagonal_one.abs() == 3 {
+            winning_pos.extend((0..3).zip(0..3))
+        }
+        if diagonal_two.abs() == 3 {
+            winning_pos.extend((0..3).zip((0..3).rev()))
+        }
+
+        if horizontal == 3 || vertical == 3 || diagonal_one == 3 || diagonal_two == 3 {
+            game_ended_writer.send(GameEndedEvent::Win(WinState {
+                player: PlayerTurn::X,
+                victory_cells: winning_pos,
+            }))
+        } else if horizontal == -3 || vertical == -3 || diagonal_one == -3 || diagonal_two == -3 {
+            game_ended_writer.send(GameEndedEvent::Win(WinState {
+                player: PlayerTurn::O,
+                victory_cells: winning_pos,
+            }))
         }
     }
 }
@@ -239,12 +262,22 @@ fn handle_game_over(
     mut status_writer: EventWriter<StatusTextUpdateEvent>,
     mut state: ResMut<State<AppState>>,
     mut commands: Commands,
+    mut query: Query<(&mut BackgroundColor, &GridPosition)>,
 ) {
     for event in game_ended_reader.iter() {
         let message = match event {
             GameEndedEvent::Draw => "Draw",
-            GameEndedEvent::Win(PlayerTurn::X) => "X wins",
-            GameEndedEvent::Win(PlayerTurn::O) => "O wins",
+            GameEndedEvent::Win(win_state) => {
+                for (mut color, position) in &mut query {
+                    if win_state.victory_cells.contains(&(position.x, position.y)) {
+                        *color = palette::SHADE_MED_LIGHT.into();
+                    }
+                }
+                match win_state.player {
+                    PlayerTurn::X => "X wins",
+                    PlayerTurn::O => "O wins",
+                }
+            }
         };
         status_writer.send(StatusTextUpdateEvent {
             text: message.into(),

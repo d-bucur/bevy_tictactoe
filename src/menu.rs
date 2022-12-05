@@ -78,7 +78,7 @@ fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         })
         .with_children(|parent| {
-            parent.spawn(TextBundle::from_section("Start", text_style.clone()));
+            parent.spawn(TextBundle::from_section("VS AI", text_style.clone()));
         })
         .insert(PlayButton)
         .id();
@@ -90,7 +90,7 @@ fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         })
         .with_children(|parent| {
-            parent.spawn(TextBundle::from_section("Test", text_style));
+            parent.spawn(TextBundle::from_section("2 Players", text_style));
         })
         .insert(TestButton)
         .id();
