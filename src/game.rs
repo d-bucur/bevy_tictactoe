@@ -16,8 +16,9 @@ struct GridPosition {
 struct StatusText;
 
 // Game structures
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 enum PlayerTurn {
+    #[default]
     X,
     O,
 }
@@ -47,6 +48,16 @@ enum GridValue {
     Empty,
 }
 
+impl GridValue {
+    fn score(&self) -> i32 {
+        match self {
+            GridValue::X => 1,
+            GridValue::O => -1,
+            GridValue::Empty => 0,
+        }
+    }
+}
+
 impl From<PlayerTurn> for GridValue {
     fn from(val: PlayerTurn) -> Self {
         match val {
@@ -57,10 +68,16 @@ impl From<PlayerTurn> for GridValue {
 }
 
 // Resources
-#[derive(Resource)]
+#[derive(Resource, Default)]
 struct GameState {
     player_turn: PlayerTurn,
 }
+
+#[derive(Component)]
+struct GameOverTimer(Timer);
+
+#[derive(Component)]
+struct GameScene;
 
 #[derive(Resource)]
 struct Grid {
@@ -93,25 +110,40 @@ struct TryPlaceEvent {
     text_entity: Entity,
 }
 
-// Plugin
+struct PiecePlacedEvent {
+    pos: GridPosition,
+}
 
+enum GameEndedEvent {
+    Draw, // TODO detect draw
+    Win(PlayerTurn),
+}
+
+// Plugin
 pub struct TicTacToeGamePlugin;
 
 impl Plugin for TicTacToeGamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Grid::new())
-            .insert_resource(GameState {
-                player_turn: PlayerTurn::X,
-            })
+            .insert_resource(GameState::default())
             .add_system_set(SystemSet::on_enter(AppState::Game).with_system(setup))
             .add_system_set(
                 SystemSet::on_update(AppState::Game)
                     .with_system(handle_player_input)
                     .with_system(update_status_text)
-                    .with_system(place_grid_piece),
+                    .with_system(place_grid_piece)
+                    .with_system(check_win_condition)
+                    .with_system(handle_game_over),
             )
+            .add_system_set(
+                SystemSet::on_update(AppState::GameOver).with_system(update_status_text),
+            )
+            .add_system_set(SystemSet::on_exit(AppState::GameOver).with_system(cleanup))
+            .add_system(check_timer)
             .add_event::<StatusTextUpdateEvent>()
-            .add_event::<TryPlaceEvent>();
+            .add_event::<TryPlaceEvent>()
+            .add_event::<PiecePlacedEvent>()
+            .add_event::<GameEndedEvent>();
     }
 }
 
@@ -155,22 +187,82 @@ fn place_grid_piece(
     mut try_place_events: EventReader<TryPlaceEvent>,
     mut grid: ResMut<Grid>,
     mut game_state: ResMut<GameState>,
+    mut text_query: Query<&mut Text>,
     mut status_writer: EventWriter<StatusTextUpdateEvent>,
-    mut query: Query<&mut Text>,
+    mut placed_piece_writer: EventWriter<PiecePlacedEvent>,
 ) {
     for event in try_place_events.iter() {
         if grid.get(event.pos) == GridValue::Empty {
-            let mut text = query.get_component_mut::<Text>(event.text_entity).unwrap();
+            let mut text = text_query
+                .get_component_mut::<Text>(event.text_entity)
+                .unwrap();
             text.sections[0].value = game_state.player_turn.into();
             grid.set(event.pos, game_state.player_turn.into());
             game_state.player_turn = game_state.player_turn.next();
             status_writer.send(StatusTextUpdateEvent {
                 text: format!("{} to move", String::from(game_state.player_turn)),
-            })
+            });
+            placed_piece_writer.send(PiecePlacedEvent { pos: event.pos })
         } else {
             status_writer.send(StatusTextUpdateEvent {
                 text: "Invalid move".into(),
             })
+        }
+    }
+}
+
+fn check_win_condition(
+    mut placed_piece_reader: EventReader<PiecePlacedEvent>,
+    grid: Res<Grid>,
+    mut game_ended_writer: EventWriter<GameEndedEvent>,
+) {
+    for event in placed_piece_reader.iter() {
+        let horizontal = (0..3)
+            .map(|x| grid.vals[x][event.pos.y].score())
+            .sum::<i32>();
+        let vertical = (0..3)
+            .map(|y| grid.vals[event.pos.x][y].score())
+            .sum::<i32>();
+        let diagonal_one: i32 = (0..3).map(|i| grid.vals[i][i].score()).sum();
+        let diagonal_two: i32 = (0..3).map(|i| grid.vals[2 - i][i].score()).sum();
+        if horizontal == 3 || vertical == 3 || diagonal_one == 3 || diagonal_two == 3 {
+            game_ended_writer.send(GameEndedEvent::Win(PlayerTurn::X))
+        }
+        if horizontal == -3 || vertical == -3 || diagonal_one == -3 || diagonal_two == -3 {
+            game_ended_writer.send(GameEndedEvent::Win(PlayerTurn::O))
+        }
+    }
+}
+
+fn handle_game_over(
+    mut game_ended_reader: EventReader<GameEndedEvent>,
+    mut status_writer: EventWriter<StatusTextUpdateEvent>,
+    mut state: ResMut<State<AppState>>,
+    mut commands: Commands,
+) {
+    for event in game_ended_reader.iter() {
+        let message = match event {
+            GameEndedEvent::Draw => "Draw",
+            GameEndedEvent::Win(PlayerTurn::X) => "X wins",
+            GameEndedEvent::Win(PlayerTurn::O) => "O wins",
+        };
+        status_writer.send(StatusTextUpdateEvent {
+            text: message.into(),
+        });
+        state.set(AppState::GameOver).unwrap();
+        commands.spawn(GameOverTimer(Timer::from_seconds(5., TimerMode::Once)));
+    }
+}
+
+fn check_timer(
+    time: Res<Time>,
+    mut query: Query<&mut GameOverTimer>,
+    mut state: ResMut<State<AppState>>,
+) {
+    for mut timer in &mut query {
+        if timer.0.tick(time.delta()).just_finished() {
+            println!("finished timer. Restarting");
+            state.set(AppState::Menu).unwrap();
         }
     }
 }
@@ -216,15 +308,21 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     }
 
     // place buttons and helper text
-    let canvas = commands.spawn(make_canvas_node()).id();
+    let canvas = commands.spawn(make_canvas_node()).insert(GameScene).id();
     let mut helper_text_bundle = TextBundle::from_section("", text_style.clone());
     helper_text_bundle.style.size = Size::new(Val::Auto, Val::Px(50.));
-    let helper_text = commands
-        .spawn(helper_text_bundle)
-        .insert(StatusText)
-        .id();
+    let helper_text = commands.spawn(helper_text_bundle).insert(StatusText).id();
     commands.entity(canvas).add_child(button_container);
     commands.entity(canvas).add_child(helper_text);
+}
+
+fn cleanup(mut commands: Commands, query: Query<Entity, With<GameScene>>) {
+    println!("cleaning up");
+    for entity in query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+    commands.insert_resource(Grid::new());
+    commands.insert_resource(GameState::default());
 }
 
 // Helpers for bundles

@@ -15,6 +15,7 @@ pub enum AppState {
     Menu,
     Game,
     Test,
+    GameOver,
 }
 
 fn main() {
