@@ -33,7 +33,7 @@ fn main() {
         .add_plugin(MenuPlugin)
         .add_plugin(TicTacToeGamePlugin)
         .add_plugin(TestModePlugin)
-        .add_plugin(EditorPlugin)
+        // .add_plugin(EditorPlugin)
         .add_state(AppState::Menu)
         .add_startup_system(setup)
         .run();

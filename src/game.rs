@@ -4,6 +4,8 @@ use bevy::prelude::*;
 
 use crate::{palette, AppState};
 
+// TODO redefine colors and try different combinations
+
 // Components
 #[derive(Component)]
 struct PlacementButton;
@@ -122,7 +124,7 @@ struct WinState {
 }
 
 enum GameEndedEvent {
-    Draw, // TODO detect draw
+    Draw,
     Win(WinState),
 }
 
@@ -224,6 +226,12 @@ fn check_win_condition(
     mut game_ended_writer: EventWriter<GameEndedEvent>,
 ) {
     for event in placed_piece_reader.iter() {
+        let is_draw = grid.vals.iter().all(|row| row.iter().all(|&cell| cell != GridValue::Empty));
+        if is_draw {
+            game_ended_writer.send(GameEndedEvent::Draw);
+            return
+        }
+
         let mut winning_pos: HashSet<(usize, usize)> = HashSet::new();
         let horizontal: i32 = (0..3).map(|x| grid.vals[x][event.pos.y].score()).sum();
         let vertical: i32 = (0..3).map(|y| grid.vals[event.pos.x][y].score()).sum();
@@ -266,7 +274,7 @@ fn handle_game_over(
 ) {
     for event in game_ended_reader.iter() {
         let message = match event {
-            GameEndedEvent::Draw => "Draw",
+            GameEndedEvent::Draw => "It's a draw!",
             GameEndedEvent::Win(win_state) => {
                 for (mut color, position) in &mut query {
                     if win_state.victory_cells.contains(&(position.x, position.y)) {
@@ -274,8 +282,8 @@ fn handle_game_over(
                     }
                 }
                 match win_state.player {
-                    PlayerTurn::X => "X wins",
-                    PlayerTurn::O => "O wins",
+                    PlayerTurn::X => "X wins!",
+                    PlayerTurn::O => "O wins!",
                 }
             }
         };

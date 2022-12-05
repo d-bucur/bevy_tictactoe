@@ -27,11 +27,11 @@ impl Plugin for MenuPlugin {
                 .label("spawn"),
         )
         .add_system_set(SystemSet::on_update(AppState::Menu).with_system(menu))
-        .add_system_set(
-            SystemSet::on_exit(AppState::Menu)
-                .with_system(save_scene)
-                .before("clean"),
-        )
+        // .add_system_set(
+        //     SystemSet::on_exit(AppState::Menu)
+        //         .with_system(save_scene)
+        //         .before("clean"),
+        // )
         .add_system_set(
             SystemSet::on_exit(AppState::Menu)
                 .with_system(cleanup_menu)
@@ -78,7 +78,7 @@ fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         })
         .with_children(|parent| {
-            parent.spawn(TextBundle::from_section("VS AI", text_style.clone()));
+            parent.spawn(TextBundle::from_section("2 Players", text_style.clone()));
         })
         .insert(PlayButton)
         .id();
@@ -90,7 +90,8 @@ fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         })
         .with_children(|parent| {
-            parent.spawn(TextBundle::from_section("2 Players", text_style));
+            parent.spawn(TextBundle::from_section("VS AI", text_style));
+            // TODO add playing vs AI
         })
         .insert(TestButton)
         .id();
