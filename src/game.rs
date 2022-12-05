@@ -4,7 +4,10 @@ use bevy::prelude::*;
 
 use crate::{palette, AppState};
 
-// TODO redefine colors and try different combinations
+const COLOR_SEPARATOR: Color = palette::SHADE_LIGHT;
+const COLOR_TEXT: Color = palette::SHADE_LIGHT;
+const COLOR_BUTTON: Color = palette::SHADE_MED_DARK;
+const COLOR_HIGHLIGHT: Color = palette::SHADE_MED_LIGHT;
 
 // Components
 #[derive(Component)]
@@ -173,10 +176,10 @@ fn handle_player_input(
                 });
             }
             Interaction::Hovered => {
-                *color = palette::SHADE_MED_LIGHT.into();
+                *color = COLOR_HIGHLIGHT.into();
             }
             Interaction::None => {
-                *color = palette::SHADE_MED_DARK.into();
+                *color = COLOR_BUTTON.into();
             }
         }
     }
@@ -278,7 +281,7 @@ fn handle_game_over(
             GameEndedEvent::Win(win_state) => {
                 for (mut color, position) in &mut query {
                     if win_state.victory_cells.contains(&(position.x, position.y)) {
-                        *color = palette::SHADE_MED_LIGHT.into();
+                        *color = COLOR_HIGHLIGHT.into();
                     }
                 }
                 match win_state.player {
@@ -312,7 +315,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let text_style = TextStyle {
         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
         font_size: 40.0,
-        color: palette::SHADE_LIGHT,
+        color: COLOR_TEXT,
     };
     let button_container = commands.spawn(make_button_container()).id();
 
@@ -393,7 +396,7 @@ fn make_grid_button() -> ButtonBundle {
             align_items: AlignItems::Center,
             ..default()
         },
-        background_color: palette::SHADE_DARK.into(),
+        background_color: COLOR_BUTTON.into(),
         ..default()
     }
 }
@@ -406,7 +409,7 @@ fn make_button_container() -> NodeBundle {
             size: Size::new(Val::Px(200.0), Val::Px(200.0)),
             ..default()
         },
-        background_color: palette::SHADE_DARK.into(),
+        background_color: COLOR_BUTTON.into(),
         ..default()
     }
 }
@@ -420,7 +423,7 @@ fn make_row_container() -> NodeBundle {
             size: Size::new(Val::Px(200.0), Val::Px(200.0)),
             ..default()
         },
-        background_color: palette::SHADE_MED_DARK.into(),
+        background_color: palette::SHADE_MED_DARK.into(), //TODO probably not visible
         ..default()
     }
 }
@@ -433,7 +436,7 @@ fn make_separator_vertical() -> NodeBundle {
             size: Size::new(Val::Px(10.0), Val::Percent(100.0)),
             ..default()
         },
-        background_color: palette::SHADE_LIGHT.into(),
+        background_color: COLOR_SEPARATOR.into(),
         ..default()
     }
 }
@@ -446,7 +449,7 @@ fn make_separator_horizontal() -> NodeBundle {
             size: Size::new(Val::Percent(100.0), Val::Px(10.0)),
             ..default()
         },
-        background_color: palette::SHADE_LIGHT.into(),
+        background_color: COLOR_SEPARATOR.into(),
         ..default()
     }
 }
