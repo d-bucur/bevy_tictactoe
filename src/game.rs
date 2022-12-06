@@ -3,7 +3,11 @@ use std::{collections::HashSet, time::Duration};
 use bevy::prelude::*;
 use bevy_tweening::{Animator, EaseFunction, Tracks, Tween};
 
-use crate::{palette, AppState, players::{PlayerDrivers, PlayerDriver}};
+use crate::{
+    palette,
+    players::{PlayerDriver, PlayerDrivers},
+    AppState,
+};
 
 // Plugin
 pub struct TicTacToeGamePlugin;
@@ -24,9 +28,8 @@ impl Plugin for TicTacToeGamePlugin {
             .add_system_set(
                 SystemSet::on_update(PlayerDriver::Input).with_system(handle_player_input),
             )
-            .add_system_set(
-                SystemSet::on_enter(PlayerDriver::AI).with_system(handle_ai_move),
-            )
+            .add_system_set(SystemSet::on_enter(PlayerDriver::AI).with_system(start_ai_move))
+            .add_system_set(SystemSet::on_update(PlayerDriver::AI).with_system(handle_ai_move))
             .add_system_set(
                 SystemSet::on_update(AppState::GameOver).with_system(update_status_text),
             )
@@ -60,6 +63,9 @@ struct StatusText;
 
 #[derive(Component)]
 struct GameOverTimer(Timer);
+
+#[derive(Component)]
+struct AIPauseTimer(Timer);
 
 #[derive(Component)]
 struct GameScene;
@@ -169,18 +175,15 @@ enum GameEndedEvent {
 // Systems
 fn handle_player_input(
     mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor, &GridPosition, &Children),
+        (&Interaction, &mut BackgroundColor, &GridPosition),
         (Changed<Interaction>, With<Button>),
     >,
     mut place_writer: EventWriter<TryPlaceEvent>,
 ) {
-    for (interaction, mut color, &grid_position, children) in &mut interaction_query {
+    for (interaction, mut color, &grid_position) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => {
-                place_writer.send(TryPlaceEvent {
-                    pos: grid_position,
-                    // text_entity: *children.iter().next().unwrap(),
-                });
+                place_writer.send(TryPlaceEvent { pos: grid_position });
             }
             Interaction::Hovered => {
                 *color = COLOR_HIGHLIGHT.into();
@@ -193,15 +196,31 @@ fn handle_player_input(
 }
 
 // TODO move to separate file for AI
-fn handle_ai_move(mut place_writer: EventWriter<TryPlaceEvent>, grid: Res<Grid>) {
-    // TODO change text and add wait timer
-    for (x, _) in grid.vals.iter().enumerate() {
-        for (y, &val) in grid.vals[x].iter().enumerate() {
-            if val == GridValue::Empty {
-                place_writer.send(TryPlaceEvent {
-                    pos: GridPosition { x: x, y: y },
-                });
-                return;
+fn start_ai_move(mut status_writer: EventWriter<StatusTextUpdateEvent>, mut commands: Commands) {
+    // TODO place piece randomly
+    status_writer.send(StatusTextUpdateEvent {
+        text: "AI thinking".into(),
+    });
+    commands.spawn(AIPauseTimer(Timer::from_seconds(1., TimerMode::Once)));
+}
+
+fn handle_ai_move(
+    grid: Res<Grid>,
+    mut place_writer: EventWriter<TryPlaceEvent>,
+    mut timer_query: Query<&mut AIPauseTimer>,
+    time: Res<Time>,
+) {
+    for mut timer in &mut timer_query {
+        if timer.0.tick(time.delta()).just_finished() {
+            for (x, _) in grid.vals.iter().enumerate() {
+                for (y, &val) in grid.vals[x].iter().enumerate() {
+                    if val == GridValue::Empty {
+                        place_writer.send(TryPlaceEvent {
+                            pos: GridPosition { x: x, y: y },
+                        });
+                        return;
+                    }
+                }
             }
         }
     }

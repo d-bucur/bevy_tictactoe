@@ -1,6 +1,6 @@
 use bevy::{prelude::*, utils::HashMap};
 
-use crate::{game::PlayerTurn};
+use crate::game::PlayerTurn;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Copy)]
 pub(crate) enum PlayerDriver {

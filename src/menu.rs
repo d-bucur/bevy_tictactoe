@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 
-use crate::PlayerDriver;
 use crate::game::PlayerTurn;
 use crate::palette;
 use crate::players::*;
 use crate::AppState;
+use crate::PlayerDriver;
 
 pub struct MenuPlugin;
 
