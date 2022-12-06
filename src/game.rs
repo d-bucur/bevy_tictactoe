@@ -133,18 +133,6 @@ enum GameEndedEvent {
     Win(WinState),
 }
 
-// struct TextTweenLens {
-//     start: f32,
-//     end: f32,
-// }
-
-// // TODO not used
-// impl Lens<TextStyle> for TextTweenLens {
-//     fn lerp(&mut self, target: &mut TextStyle, ratio: f32) {
-//         target.font_size = self.start + (self.end - self.start) * ratio;
-//     }
-// }
-
 // Plugin
 pub struct TicTacToeGamePlugin;
 
@@ -224,7 +212,15 @@ fn place_grid_piece(
                 .get_component_mut::<Text>(event.text_entity)
                 .unwrap();
             text.sections[0].value = game_state.player_turn.into();
-            let bundle = Animator::new(Tracks::new([
+            grid.set(event.pos, game_state.player_turn.into());
+            game_state.player_turn = game_state.player_turn.next();
+            placed_piece_writer.send(PiecePlacedEvent { pos: event.pos });
+            
+            status_writer.send(StatusTextUpdateEvent {
+                text: format!("{} to move", String::from(game_state.player_turn)),
+            });
+            // tween piece into position
+            let animator = Animator::new(Tracks::new([
                 Tween::new(
                     EaseFunction::QuadraticOut,
                     Duration::from_millis(250),
@@ -239,21 +235,7 @@ fn place_grid_piece(
                     bevy_tweening::lens::TransformRotateZLens { start: 1., end: 0. },
                 ),
             ]));
-            // let bundle = Animator::new(Tween::new(
-            //     EaseFunction::BackOut,
-            //     Duration::from_secs(1),
-            //     TextTweenLens {
-            //         start: TEXT_SIZE*2.,
-            //         end: TEXT_SIZE,
-            //     }
-            // ));
-            commands.entity(event.text_entity).insert(bundle);
-            grid.set(event.pos, game_state.player_turn.into());
-            game_state.player_turn = game_state.player_turn.next();
-            status_writer.send(StatusTextUpdateEvent {
-                text: format!("{} to move", String::from(game_state.player_turn)),
-            });
-            placed_piece_writer.send(PiecePlacedEvent { pos: event.pos })
+            commands.entity(event.text_entity).insert(animator);
         } else {
             status_writer.send(StatusTextUpdateEvent {
                 text: "Invalid move".into(),
@@ -467,7 +449,6 @@ fn make_row_container() -> NodeBundle {
             size: Size::new(Val::Px(200.0), Val::Px(200.0)),
             ..default()
         },
-        background_color: palette::SHADE_MED_DARK.into(), //TODO probably not visible
         ..default()
     }
 }
