@@ -7,6 +7,7 @@ mod utils;
 use crate::menu::MenuPlugin;
 use bevy::prelude::*;
 use bevy_editor_pls::EditorPlugin;
+use bevy_tweening::TweeningPlugin;
 use game::TicTacToeGamePlugin;
 use testmode::TestModePlugin;
 
@@ -33,6 +34,7 @@ fn main() {
         .add_plugin(MenuPlugin)
         .add_plugin(TicTacToeGamePlugin)
         .add_plugin(TestModePlugin)
+        .add_plugin(TweeningPlugin)
         // .add_plugin(EditorPlugin)
         .add_state(AppState::Menu)
         .add_startup_system(setup)

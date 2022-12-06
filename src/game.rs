@@ -1,13 +1,15 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Duration};
 
 use bevy::prelude::*;
+use bevy_tweening::{Animator, EaseFunction, Lens, Tracks, Tween};
 
 use crate::{palette, AppState};
 
 const COLOR_SEPARATOR: Color = palette::SHADE_LIGHT;
 const COLOR_TEXT: Color = palette::SHADE_LIGHT;
-const COLOR_BUTTON: Color = palette::SHADE_MED_DARK;
+const COLOR_BUTTON: Color = palette::SHADE_DARK;
 const COLOR_HIGHLIGHT: Color = palette::SHADE_MED_LIGHT;
+const TEXT_SIZE: f32 = 40.;
 
 // Components
 #[derive(Component)]
@@ -131,6 +133,18 @@ enum GameEndedEvent {
     Win(WinState),
 }
 
+// struct TextTweenLens {
+//     start: f32,
+//     end: f32,
+// }
+
+// // TODO not used
+// impl Lens<TextStyle> for TextTweenLens {
+//     fn lerp(&mut self, target: &mut TextStyle, ratio: f32) {
+//         target.font_size = self.start + (self.end - self.start) * ratio;
+//     }
+// }
+
 // Plugin
 pub struct TicTacToeGamePlugin;
 
@@ -202,6 +216,7 @@ fn place_grid_piece(
     mut text_query: Query<&mut Text>,
     mut status_writer: EventWriter<StatusTextUpdateEvent>,
     mut placed_piece_writer: EventWriter<PiecePlacedEvent>,
+    mut commands: Commands,
 ) {
     for event in try_place_events.iter() {
         if grid.get(event.pos) == GridValue::Empty {
@@ -209,6 +224,30 @@ fn place_grid_piece(
                 .get_component_mut::<Text>(event.text_entity)
                 .unwrap();
             text.sections[0].value = game_state.player_turn.into();
+            let bundle = Animator::new(Tracks::new([
+                Tween::new(
+                    EaseFunction::QuadraticOut,
+                    Duration::from_millis(250),
+                    bevy_tweening::lens::TransformScaleLens {
+                        start: Vec3::ONE * 3.,
+                        end: Vec3::ONE,
+                    },
+                ),
+                Tween::new(
+                    EaseFunction::QuadraticOut,
+                    Duration::from_millis(250),
+                    bevy_tweening::lens::TransformRotateZLens { start: 1., end: 0. },
+                ),
+            ]));
+            // let bundle = Animator::new(Tween::new(
+            //     EaseFunction::BackOut,
+            //     Duration::from_secs(1),
+            //     TextTweenLens {
+            //         start: TEXT_SIZE*2.,
+            //         end: TEXT_SIZE,
+            //     }
+            // ));
+            commands.entity(event.text_entity).insert(bundle);
             grid.set(event.pos, game_state.player_turn.into());
             game_state.player_turn = game_state.player_turn.next();
             status_writer.send(StatusTextUpdateEvent {
@@ -229,12 +268,6 @@ fn check_win_condition(
     mut game_ended_writer: EventWriter<GameEndedEvent>,
 ) {
     for event in placed_piece_reader.iter() {
-        let is_draw = grid.vals.iter().all(|row| row.iter().all(|&cell| cell != GridValue::Empty));
-        if is_draw {
-            game_ended_writer.send(GameEndedEvent::Draw);
-            return
-        }
-
         let mut winning_pos: HashSet<(usize, usize)> = HashSet::new();
         let horizontal: i32 = (0..3).map(|x| grid.vals[x][event.pos.y].score()).sum();
         let vertical: i32 = (0..3).map(|y| grid.vals[event.pos.x][y].score()).sum();
@@ -258,12 +291,23 @@ fn check_win_condition(
             game_ended_writer.send(GameEndedEvent::Win(WinState {
                 player: PlayerTurn::X,
                 victory_cells: winning_pos,
-            }))
+            }));
+            return
         } else if horizontal == -3 || vertical == -3 || diagonal_one == -3 || diagonal_two == -3 {
             game_ended_writer.send(GameEndedEvent::Win(WinState {
                 player: PlayerTurn::O,
                 victory_cells: winning_pos,
-            }))
+            }));
+            return
+        }
+        
+        let is_draw = grid
+            .vals
+            .iter()
+            .all(|row| row.iter().all(|&cell| cell != GridValue::Empty));
+        if is_draw {
+            game_ended_writer.send(GameEndedEvent::Draw);
+            return
         }
     }
 }
@@ -314,7 +358,7 @@ fn check_timer(
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let text_style = TextStyle {
         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-        font_size: 40.0,
+        font_size: TEXT_SIZE,
         color: COLOR_TEXT,
     };
     let button_container = commands.spawn(make_button_container()).id();
