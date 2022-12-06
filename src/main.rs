@@ -1,3 +1,4 @@
+mod ai;
 mod game;
 mod menu;
 mod palette;
@@ -6,6 +7,7 @@ mod testmode;
 mod utils;
 
 use crate::menu::MenuPlugin;
+use ai::AIPlugin;
 use bevy::prelude::*;
 use bevy_editor_pls::EditorPlugin;
 use bevy_tweening::TweeningPlugin;
@@ -38,6 +40,7 @@ fn main() {
         .add_plugin(TicTacToeGamePlugin)
         .add_plugin(TestModePlugin)
         .add_plugin(TweeningPlugin)
+        .add_plugin(AIPlugin)
         // .add_plugin(EditorPlugin)
         .add_state(AppState::Menu)
         .add_state(PlayerDriver::None)

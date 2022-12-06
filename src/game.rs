@@ -28,8 +28,6 @@ impl Plugin for TicTacToeGamePlugin {
             .add_system_set(
                 SystemSet::on_update(PlayerDriver::Input).with_system(handle_player_input),
             )
-            .add_system_set(SystemSet::on_enter(PlayerDriver::AI).with_system(start_ai_move))
-            .add_system_set(SystemSet::on_update(PlayerDriver::AI).with_system(handle_ai_move))
             .add_system_set(
                 SystemSet::on_update(AppState::GameOver).with_system(update_status_text),
             )
@@ -53,9 +51,9 @@ const TEXT_SIZE: f32 = 40.;
 struct PlacementButton;
 
 #[derive(Component, Clone, Copy)]
-struct GridPosition {
-    x: usize,
-    y: usize,
+pub(crate) struct GridPosition {
+    pub(crate) x: usize,
+    pub(crate) y: usize,
 }
 
 #[derive(Component)]
@@ -65,7 +63,7 @@ struct StatusText;
 struct GameOverTimer(Timer);
 
 #[derive(Component)]
-struct AIPauseTimer(Timer);
+pub(crate) struct AIPauseTimer(pub(crate) Timer);
 
 #[derive(Component)]
 struct GameScene;
@@ -97,7 +95,7 @@ impl From<PlayerTurn> for String {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum GridValue {
+pub(crate) enum GridValue {
     X,
     O,
     Empty,
@@ -129,8 +127,8 @@ struct GameState {
 }
 
 #[derive(Resource)]
-struct Grid {
-    vals: [[GridValue; 3]; 3],
+pub(crate) struct Grid {
+    pub(crate) vals: [[GridValue; 3]; 3],
 }
 
 impl Grid {
@@ -150,12 +148,12 @@ impl Grid {
 }
 
 // Events
-struct StatusTextUpdateEvent {
-    text: String,
+pub(crate) struct StatusTextUpdateEvent {
+    pub(crate) text: String,
 }
 
-struct TryPlaceEvent {
-    pos: GridPosition,
+pub(crate) struct TryPlaceEvent {
+    pub(crate) pos: GridPosition,
 }
 
 struct PiecePlacedEvent {
@@ -190,37 +188,6 @@ fn handle_player_input(
             }
             Interaction::None => {
                 *color = COLOR_BUTTON.into();
-            }
-        }
-    }
-}
-
-// TODO move to separate file for AI
-fn start_ai_move(mut status_writer: EventWriter<StatusTextUpdateEvent>, mut commands: Commands) {
-    // TODO place piece randomly
-    status_writer.send(StatusTextUpdateEvent {
-        text: "AI thinking".into(),
-    });
-    commands.spawn(AIPauseTimer(Timer::from_seconds(1., TimerMode::Once)));
-}
-
-fn handle_ai_move(
-    grid: Res<Grid>,
-    mut place_writer: EventWriter<TryPlaceEvent>,
-    mut timer_query: Query<&mut AIPauseTimer>,
-    time: Res<Time>,
-) {
-    for mut timer in &mut timer_query {
-        if timer.0.tick(time.delta()).just_finished() {
-            for (x, _) in grid.vals.iter().enumerate() {
-                for (y, &val) in grid.vals[x].iter().enumerate() {
-                    if val == GridValue::Empty {
-                        place_writer.send(TryPlaceEvent {
-                            pos: GridPosition { x: x, y: y },
-                        });
-                        return;
-                    }
-                }
             }
         }
     }
