@@ -1,6 +1,10 @@
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 
+use crate::PlayerDriver;
+use crate::game::PlayerTurn;
 use crate::palette;
+use crate::players::*;
 use crate::AppState;
 
 pub struct MenuPlugin;
@@ -91,9 +95,8 @@ fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .with_children(|parent| {
             parent.spawn(TextBundle::from_section("VS AI", text_style));
-            // TODO add playing vs AI
         })
-        .insert(TestButton)
+        .insert(TestButton) // TODO rename
         .id();
 
     commands.entity(button_container).add_child(start_button);
@@ -101,7 +104,8 @@ fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn menu(
-    mut state: ResMut<State<AppState>>,
+    mut app_state: ResMut<State<AppState>>,
+    mut current_player_driver: ResMut<State<PlayerDriver>>,
     mut interaction_query: Query<
         (
             &Interaction,
@@ -111,16 +115,26 @@ fn menu(
         ),
         (Changed<Interaction>, With<Button>),
     >,
-    query: Query<&PlayButton, &TestButton>,
+    mut commands: Commands,
 ) {
     for (interaction, mut color, play, test) in &mut interaction_query {
         match *interaction {
             Interaction::Clicked => {
                 if play.is_some() {
-                    state.set(AppState::Game).unwrap();
+                    app_state.set(AppState::Game).unwrap();
+                    commands.insert_resource(PlayerDrivers(HashMap::from([
+                        (PlayerTurn::X, PlayerDriver::Input),
+                        (PlayerTurn::O, PlayerDriver::Input),
+                    ])));
+                    current_player_driver.overwrite_set(PlayerDriver::Input);
                 }
                 if test.is_some() {
-                    state.set(AppState::Test).unwrap();
+                    app_state.set(AppState::Game).unwrap();
+                    commands.insert_resource(PlayerDrivers(HashMap::from([
+                        (PlayerTurn::X, PlayerDriver::Input), // TODO two AIs don't work
+                        (PlayerTurn::O, PlayerDriver::AI),
+                    ])));
+                    current_player_driver.overwrite_set(PlayerDriver::Input); // TODO use first player type
                 }
             }
             Interaction::Hovered => {

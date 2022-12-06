@@ -1,6 +1,7 @@
 mod game;
 mod menu;
 mod palette;
+mod players;
 mod testmode;
 mod utils;
 
@@ -9,8 +10,10 @@ use bevy::prelude::*;
 use bevy_editor_pls::EditorPlugin;
 use bevy_tweening::TweeningPlugin;
 use game::TicTacToeGamePlugin;
+use players::PlayerDriver;
 use testmode::TestModePlugin;
 
+// States
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
     Menu,
@@ -37,6 +40,7 @@ fn main() {
         .add_plugin(TweeningPlugin)
         // .add_plugin(EditorPlugin)
         .add_state(AppState::Menu)
+        .add_state(PlayerDriver::None)
         .add_startup_system(setup)
         .run();
 }

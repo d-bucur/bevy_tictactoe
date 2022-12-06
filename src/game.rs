@@ -1,9 +1,43 @@
 use std::{collections::HashSet, time::Duration};
 
 use bevy::prelude::*;
-use bevy_tweening::{Animator, EaseFunction, Lens, Tracks, Tween};
+use bevy_tweening::{Animator, EaseFunction, Tracks, Tween};
 
-use crate::{palette, AppState};
+use crate::{palette, AppState, players::{PlayerDrivers, PlayerDriver}};
+
+// Plugin
+pub struct TicTacToeGamePlugin;
+
+impl Plugin for TicTacToeGamePlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(Grid::new())
+            .insert_resource(GameState::default())
+            .add_system_set(SystemSet::on_enter(AppState::Game).with_system(setup))
+            .add_system_set(
+                SystemSet::on_update(AppState::Game)
+                    .with_system(update_status_text)
+                    .with_system(place_grid_piece)
+                    .with_system(check_win_condition)
+                    .with_system(handle_game_over),
+            )
+            // TODO players as entities with components instead of resources? any advantage?
+            .add_system_set(
+                SystemSet::on_update(PlayerDriver::Input).with_system(handle_player_input),
+            )
+            .add_system_set(
+                SystemSet::on_enter(PlayerDriver::AI).with_system(handle_ai_move),
+            )
+            .add_system_set(
+                SystemSet::on_update(AppState::GameOver).with_system(update_status_text),
+            )
+            .add_system_set(SystemSet::on_exit(AppState::GameOver).with_system(cleanup))
+            .add_system(check_timer)
+            .add_event::<StatusTextUpdateEvent>()
+            .add_event::<TryPlaceEvent>()
+            .add_event::<PiecePlacedEvent>()
+            .add_event::<GameEndedEvent>();
+    }
+}
 
 const COLOR_SEPARATOR: Color = palette::SHADE_LIGHT;
 const COLOR_TEXT: Color = palette::SHADE_LIGHT;
@@ -24,9 +58,15 @@ struct GridPosition {
 #[derive(Component)]
 struct StatusText;
 
+#[derive(Component)]
+struct GameOverTimer(Timer);
+
+#[derive(Component)]
+struct GameScene;
+
 // Game structures
-#[derive(Clone, Copy, Default)]
-enum PlayerTurn {
+#[derive(Clone, Copy, Default, Hash, PartialEq, Eq)]
+pub(crate) enum PlayerTurn {
     #[default]
     X,
     O,
@@ -82,12 +122,6 @@ struct GameState {
     player_turn: PlayerTurn,
 }
 
-#[derive(Component)]
-struct GameOverTimer(Timer);
-
-#[derive(Component)]
-struct GameScene;
-
 #[derive(Resource)]
 struct Grid {
     vals: [[GridValue; 3]; 3],
@@ -116,7 +150,6 @@ struct StatusTextUpdateEvent {
 
 struct TryPlaceEvent {
     pos: GridPosition,
-    text_entity: Entity,
 }
 
 struct PiecePlacedEvent {
@@ -133,34 +166,6 @@ enum GameEndedEvent {
     Win(WinState),
 }
 
-// Plugin
-pub struct TicTacToeGamePlugin;
-
-impl Plugin for TicTacToeGamePlugin {
-    fn build(&self, app: &mut App) {
-        app.insert_resource(Grid::new())
-            .insert_resource(GameState::default())
-            .add_system_set(SystemSet::on_enter(AppState::Game).with_system(setup))
-            .add_system_set(
-                SystemSet::on_update(AppState::Game)
-                    .with_system(handle_player_input)
-                    .with_system(update_status_text)
-                    .with_system(place_grid_piece)
-                    .with_system(check_win_condition)
-                    .with_system(handle_game_over),
-            )
-            .add_system_set(
-                SystemSet::on_update(AppState::GameOver).with_system(update_status_text),
-            )
-            .add_system_set(SystemSet::on_exit(AppState::GameOver).with_system(cleanup))
-            .add_system(check_timer)
-            .add_event::<StatusTextUpdateEvent>()
-            .add_event::<TryPlaceEvent>()
-            .add_event::<PiecePlacedEvent>()
-            .add_event::<GameEndedEvent>();
-    }
-}
-
 // Systems
 fn handle_player_input(
     mut interaction_query: Query<
@@ -174,7 +179,7 @@ fn handle_player_input(
             Interaction::Clicked => {
                 place_writer.send(TryPlaceEvent {
                     pos: grid_position,
-                    text_entity: *children.iter().next().unwrap(),
+                    // text_entity: *children.iter().next().unwrap(),
                 });
             }
             Interaction::Hovered => {
@@ -182,6 +187,21 @@ fn handle_player_input(
             }
             Interaction::None => {
                 *color = COLOR_BUTTON.into();
+            }
+        }
+    }
+}
+
+// TODO move to separate file for AI
+fn handle_ai_move(mut place_writer: EventWriter<TryPlaceEvent>, grid: Res<Grid>) {
+    // TODO change text and add wait timer
+    for (x, _) in grid.vals.iter().enumerate() {
+        for (y, &val) in grid.vals[x].iter().enumerate() {
+            if val == GridValue::Empty {
+                place_writer.send(TryPlaceEvent {
+                    pos: GridPosition { x: x, y: y },
+                });
+                return;
             }
         }
     }
@@ -201,21 +221,35 @@ fn place_grid_piece(
     mut try_place_events: EventReader<TryPlaceEvent>,
     mut grid: ResMut<Grid>,
     mut game_state: ResMut<GameState>,
+    mut current_driver: ResMut<State<PlayerDriver>>,
     mut text_query: Query<&mut Text>,
+    grid_query: Query<(&GridPosition, &Children)>,
     mut status_writer: EventWriter<StatusTextUpdateEvent>,
     mut placed_piece_writer: EventWriter<PiecePlacedEvent>,
     mut commands: Commands,
+    players: Res<PlayerDrivers>,
 ) {
+    // TODO refactor
     for event in try_place_events.iter() {
         if grid.get(event.pos) == GridValue::Empty {
+            let mut text_entity = None;
+            for (grid_pos, children) in grid_query.iter() {
+                if grid_pos.x == event.pos.x && grid_pos.y == event.pos.y {
+                    text_entity = Some(*children.iter().next().unwrap());
+                }
+            }
             let mut text = text_query
-                .get_component_mut::<Text>(event.text_entity)
+                .get_component_mut::<Text>(text_entity.unwrap())
                 .unwrap();
             text.sections[0].value = game_state.player_turn.into();
+
             grid.set(event.pos, game_state.player_turn.into());
+            // TODO player turn should be tied to current driver
             game_state.player_turn = game_state.player_turn.next();
+            current_driver.set(players.0[&game_state.player_turn]);
+
             placed_piece_writer.send(PiecePlacedEvent { pos: event.pos });
-            
+
             status_writer.send(StatusTextUpdateEvent {
                 text: format!("{} to move", String::from(game_state.player_turn)),
             });
@@ -235,7 +269,7 @@ fn place_grid_piece(
                     bevy_tweening::lens::TransformRotateZLens { start: 1., end: 0. },
                 ),
             ]));
-            commands.entity(event.text_entity).insert(animator);
+            commands.entity(text_entity.unwrap()).insert(animator);
         } else {
             status_writer.send(StatusTextUpdateEvent {
                 text: "Invalid move".into(),
@@ -274,22 +308,22 @@ fn check_win_condition(
                 player: PlayerTurn::X,
                 victory_cells: winning_pos,
             }));
-            return
+            return;
         } else if horizontal == -3 || vertical == -3 || diagonal_one == -3 || diagonal_two == -3 {
             game_ended_writer.send(GameEndedEvent::Win(WinState {
                 player: PlayerTurn::O,
                 victory_cells: winning_pos,
             }));
-            return
+            return;
         }
-        
+
         let is_draw = grid
             .vals
             .iter()
             .all(|row| row.iter().all(|&cell| cell != GridValue::Empty));
         if is_draw {
             game_ended_writer.send(GameEndedEvent::Draw);
-            return
+            return;
         }
     }
 }
@@ -298,6 +332,7 @@ fn handle_game_over(
     mut game_ended_reader: EventReader<GameEndedEvent>,
     mut status_writer: EventWriter<StatusTextUpdateEvent>,
     mut state: ResMut<State<AppState>>,
+    mut current_player_driver: ResMut<State<PlayerDriver>>,
     mut commands: Commands,
     mut query: Query<(&mut BackgroundColor, &GridPosition)>,
 ) {
@@ -320,6 +355,7 @@ fn handle_game_over(
             text: message.into(),
         });
         state.set(AppState::GameOver).unwrap();
+        current_player_driver.set(PlayerDriver::None);
         commands.spawn(GameOverTimer(Timer::from_seconds(5., TimerMode::Once)));
     }
 }
