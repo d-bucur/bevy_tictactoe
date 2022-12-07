@@ -22,6 +22,7 @@ fn start_ai_move(mut status_writer: EventWriter<StatusTextUpdateEvent>, mut comm
     commands.spawn(AIPauseTimer(Timer::from_seconds(1., TimerMode::Once)));
 }
 
+// TODO use RunCriteria instead?
 fn handle_ai_move(
     grid: Res<Grid>,
     mut place_writer: EventWriter<TryPlaceEvent>,

@@ -215,7 +215,7 @@ fn place_grid_piece(
     mut commands: Commands,
     players: Res<PlayerDrivers>,
 ) {
-    // TODO refactor
+    // TODO refactor: parameters that go together can be grouped in SystemParams. break into multiple systems and use system piping
     for event in try_place_events.iter() {
         if grid.get(event.pos) == GridValue::Empty {
             let mut text_entity = None;
@@ -230,7 +230,7 @@ fn place_grid_piece(
             text.sections[0].value = game_state.player_turn.into();
 
             grid.set(event.pos, game_state.player_turn.into());
-            // TODO player turn should be tied to current driver
+            // TODO player turn should be tied to current driver. Maybe done with SystemParam
             game_state.player_turn = game_state.player_turn.next();
             current_driver.set(players.0[&game_state.player_turn]);
 

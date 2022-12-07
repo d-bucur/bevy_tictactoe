@@ -147,6 +147,7 @@ fn menu(
     }
 }
 
+// TODO use generic system for cleanup
 fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MenuItem>>) {
     for item in &query {
         commands.entity(item).despawn_recursive();
