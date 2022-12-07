@@ -1,6 +1,7 @@
-use std::{collections::HashSet, time::Duration};
+use std::{collections::HashSet, marker::PhantomData, time::Duration};
 
-use bevy::prelude::*;
+use bevy::{ecs::system::SystemParam, prelude::*};
+use bevy_inspector_egui::egui::epaint::text;
 use bevy_tweening::{Animator, EaseFunction, Tracks, Tween};
 
 use crate::{
@@ -14,13 +15,19 @@ pub struct TicTacToeGamePlugin;
 
 impl Plugin for TicTacToeGamePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Grid::new())
+        app
+            // Resources
+            .insert_resource(Grid::new())
             .insert_resource(GameState::default())
+            // Systems
             .add_system_set(SystemSet::on_enter(AppState::Game).with_system(setup))
             .add_system_set(
                 SystemSet::on_update(AppState::Game)
-                    .with_system(update_status_text)
-                    .with_system(place_grid_piece)
+                    .with_system(
+                        find_text_for_piece
+                            .pipe(place_grid_piece)
+                            .pipe(animate_piece),
+                    )
                     .with_system(check_win_condition)
                     .with_system(handle_game_over),
             )
@@ -28,11 +35,10 @@ impl Plugin for TicTacToeGamePlugin {
             .add_system_set(
                 SystemSet::on_update(PlayerDriver::Input).with_system(handle_player_input),
             )
-            .add_system_set(
-                SystemSet::on_update(AppState::GameOver).with_system(update_status_text),
-            )
             .add_system_set(SystemSet::on_exit(AppState::GameOver).with_system(cleanup))
             .add_system(check_timer)
+            .add_system(update_status_text)
+            // Events
             .add_event::<StatusTextUpdateEvent>()
             .add_event::<TryPlaceEvent>()
             .add_event::<PiecePlacedEvent>()
@@ -50,7 +56,7 @@ const TEXT_SIZE: f32 = 40.;
 #[derive(Component)]
 struct PlacementButton;
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Clone, Copy, Debug)]
 pub(crate) struct GridPosition {
     pub(crate) x: usize,
     pub(crate) y: usize,
@@ -170,6 +176,25 @@ enum GameEndedEvent {
     Win(WinState),
 }
 
+// Kind of useless, but wanted to try SystemParams
+#[derive(SystemParam)]
+struct TurnParams<'w, 's> {
+    game_state: ResMut<'w, GameState>,
+    current_driver: ResMut<'w, State<PlayerDriver>>,
+    players: Res<'w, PlayerDrivers>,
+    #[system_param(ignore)] // ugly, but should be unnecessary in 0.10
+    phantom: PhantomData<&'s ()>,
+}
+
+impl<'w, 's> TurnParams<'w, 's> {
+    /// Changes to next player and updates the driver
+    fn end_turn(&mut self) {
+        self.game_state.player_turn = self.game_state.player_turn.next();
+        self.current_driver
+            .set(self.players.0[&self.game_state.player_turn]);
+    }
+}
+
 // Systems
 fn handle_player_input(
     mut interaction_query: Query<
@@ -180,15 +205,9 @@ fn handle_player_input(
 ) {
     for (interaction, mut color, &grid_position) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => {
-                place_writer.send(TryPlaceEvent { pos: grid_position });
-            }
-            Interaction::Hovered => {
-                *color = COLOR_HIGHLIGHT.into();
-            }
-            Interaction::None => {
-                *color = COLOR_BUTTON.into();
-            }
+            Interaction::Clicked => place_writer.send(TryPlaceEvent { pos: grid_position }),
+            Interaction::Hovered => *color = COLOR_HIGHLIGHT.into(),
+            Interaction::None => *color = COLOR_BUTTON.into(),
         }
     }
 }
@@ -203,64 +222,83 @@ fn update_status_text(
     }
 }
 
-fn place_grid_piece(
+// TODO move into animate_piece or before. current order doesn't make sense
+fn find_text_for_piece(
     mut try_place_events: EventReader<TryPlaceEvent>,
-    mut grid: ResMut<Grid>,
-    mut game_state: ResMut<GameState>,
-    mut current_driver: ResMut<State<PlayerDriver>>,
-    mut text_query: Query<&mut Text>,
     grid_query: Query<(&GridPosition, &Children)>,
+) -> Option<(Entity, GridPosition)> {
+    for event in try_place_events.iter() {
+        for (grid_pos, children) in grid_query.iter() {
+            if grid_pos.x == event.pos.x && grid_pos.y == event.pos.y {
+                // Could technically lose some events here by returning, but
+                // in practice should never have them so close to each other that they end up
+                // in the same frame
+                println!("VALID place in {:?}", event.pos);
+                return Some((*children.iter().next().unwrap(), event.pos));
+            }
+        }
+    }
+    return None;
+}
+
+fn place_grid_piece(
+    In(input): In<Option<(Entity, GridPosition)>>,
+    mut grid: ResMut<Grid>,
     mut status_writer: EventWriter<StatusTextUpdateEvent>,
     mut placed_piece_writer: EventWriter<PiecePlacedEvent>,
-    mut commands: Commands,
-    players: Res<PlayerDrivers>,
-) {
-    // TODO refactor: parameters that go together can be grouped in SystemParams. break into multiple systems and use system piping
-    for event in try_place_events.iter() {
-        if grid.get(event.pos) == GridValue::Empty {
-            let mut text_entity = None;
-            for (grid_pos, children) in grid_query.iter() {
-                if grid_pos.x == event.pos.x && grid_pos.y == event.pos.y {
-                    text_entity = Some(*children.iter().next().unwrap());
-                }
-            }
-            let mut text = text_query
-                .get_component_mut::<Text>(text_entity.unwrap())
-                .unwrap();
-            text.sections[0].value = game_state.player_turn.into();
-
-            grid.set(event.pos, game_state.player_turn.into());
-            // TODO player turn should be tied to current driver. Maybe done with SystemParam
-            game_state.player_turn = game_state.player_turn.next();
-            current_driver.set(players.0[&game_state.player_turn]);
-
-            placed_piece_writer.send(PiecePlacedEvent { pos: event.pos });
-
-            status_writer.send(StatusTextUpdateEvent {
-                text: format!("{} to move", String::from(game_state.player_turn)),
-            });
-            // tween piece into position
-            let animator = Animator::new(Tracks::new([
-                Tween::new(
-                    EaseFunction::QuadraticOut,
-                    Duration::from_millis(250),
-                    bevy_tweening::lens::TransformScaleLens {
-                        start: Vec3::ONE * 3.,
-                        end: Vec3::ONE,
-                    },
-                ),
-                Tween::new(
-                    EaseFunction::QuadraticOut,
-                    Duration::from_millis(250),
-                    bevy_tweening::lens::TransformRotateZLens { start: 1., end: 0. },
-                ),
-            ]));
-            commands.entity(text_entity.unwrap()).insert(animator);
-        } else {
+    mut turn_params: TurnParams,
+) -> Option<(Entity, PlayerTurn)> {
+    if let Some((text_entity, pos)) = input {
+        if grid.get(pos) != GridValue::Empty {
             status_writer.send(StatusTextUpdateEvent {
                 text: "Invalid move".into(),
-            })
+            });
+            return None;
         }
+        let current_player = turn_params.game_state.player_turn;
+        grid.set(pos, current_player.into());
+        turn_params.end_turn();
+
+        placed_piece_writer.send(PiecePlacedEvent { pos: pos });
+
+        status_writer.send(StatusTextUpdateEvent {
+            text: format!(
+                "{} to move",
+                String::from(turn_params.game_state.player_turn)
+            ),
+        });
+        return Some((text_entity, current_player));
+    }
+    None
+}
+
+fn animate_piece(
+    In(input): In<Option<(Entity, PlayerTurn)>>,
+    mut commands: Commands,
+    mut text_query: Query<&mut Text>,
+) {
+    if let Some((text_entity, player_text)) = input {
+        // set text on component
+        let mut text = text_query.get_component_mut::<Text>(text_entity).unwrap();
+        text.sections[0].value = player_text.into();
+
+        // tween piece into position
+        let animator = Animator::new(Tracks::new([
+            Tween::new(
+                EaseFunction::QuadraticOut,
+                Duration::from_millis(250),
+                bevy_tweening::lens::TransformScaleLens {
+                    start: Vec3::ONE * 3.,
+                    end: Vec3::ONE,
+                },
+            ),
+            Tween::new(
+                EaseFunction::QuadraticOut,
+                Duration::from_millis(250),
+                bevy_tweening::lens::TransformRotateZLens { start: 1., end: 0. },
+            ),
+        ]));
+        commands.entity(text_entity).insert(animator);
     }
 }
 

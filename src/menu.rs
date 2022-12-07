@@ -134,7 +134,7 @@ fn menu(
                         (PlayerTurn::X, PlayerDriver::Input), // TODO two AIs don't work
                         (PlayerTurn::O, PlayerDriver::AI),
                     ])));
-                    current_player_driver.overwrite_set(PlayerDriver::Input); // TODO use first player type
+                    current_player_driver.overwrite_set(PlayerDriver::Input); // TODO use first player type. maybe do in game setup
                 }
             }
             Interaction::Hovered => {
